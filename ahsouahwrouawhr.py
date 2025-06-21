@@ -82,9 +82,9 @@ while True:
 
         # Edge mapping per tag
         TAG_EDGE_MAP = {
-            0: (2, 3),
-            1: (2, 3),
-            2: (2, 1),
+            0: (3, 2),
+            1: (3, 2),
+            2: (3, 2),
         }
 
         # Choose edge
@@ -112,19 +112,16 @@ while True:
 
         # Get the rotation from the pose
         rotation = pose.rotation()
-        
-        # Get the rotation matrix using the toRotationMatrix() method
-        rotation_mat = np.array([
-            [rotation.X(), rotation.Y(), rotation.Z()],
-            [0, 0, 0],  # Placeholder - need proper matrix conversion
-            [0, 0, 0]   # Placeholder - need proper matrix conversion
-        ])
-        
-        # Alternative approach using quaternion
         quat = rotation.getQuaternion()
-        # Convert quaternion to rotation matrix (simplified example)
-        # This is a placeholder - you'll need to implement proper quaternion to matrix conversion
-        rotation_mat = np.eye(3)  # Identity matrix as placeholder
+        qx, qy, qz, qw = quat.X(), quat.Y(), quat.Z(), quat.W()
+
+        # Construct rotation matrix from quaternion
+        rotation_mat = np.array([
+            [1 - 2*(qy**2 + qz**2),     2*(qx*qy - qz*qw),     2*(qx*qz + qy*qw)],
+            [    2*(qx*qy + qz*qw), 1 - 2*(qx**2 + qz**2),     2*(qy*qz - qx*qw)],
+            [    2*(qx*qz - qy*qw),     2*(qy*qz + qx*qw), 1 - 2*(qx**2 + qy**2)]
+        ])
+
 
         translation = np.array([
             pose.translation().x,
@@ -134,7 +131,7 @@ while True:
         
         # Transform normal to camera frame
         normal_cam = rotation_mat @ local_normal
-        offset_meters = 0.0254 * 3  # 3 inches
+        offset_meters = 0.0254 * 3.25  # 3 inches
         offset_point_cam = translation + normal_cam * offset_meters
 
         # Intrinsics (adjust to your camera)
