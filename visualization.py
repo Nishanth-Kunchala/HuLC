@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 
 # Load your keypoint detection model
-model = tf.keras.models.load_model("xy_heatmap_model.keras")
+model = tf.keras.models.load_model(r'C:\Users\rajku\Documents\HuLC\HuLC\xy_heatmap_model.h5')
 
 # Heatmap to weighted coordinates (same as yours)
 def heatmap_to_weighted_coords(heatmap_x, heatmap_y, top_k=10):
