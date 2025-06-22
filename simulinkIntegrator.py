@@ -33,7 +33,7 @@ def initialize_apriltag_system():
 def get_coords_from_frame(cap, detector, estimator, estimator_config, clahe, target_id=None):
     ret, frame = cap.read()
     if not ret:
-        return None, None, None, frame
+        return None, None, None, None, None, None, frame
 
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     lower_red1 = np.array([0, 100, 100])
@@ -87,6 +87,16 @@ def get_coords_from_frame(cap, detector, estimator, estimator_config, clahe, tar
             [2*(qx*qz - qy*qw),     2*(qy*qz + qx*qw),     1 - 2*(qx**2 + qy**2)]
         ])
 
+        def rotmat_to_euler(R):
+            if abs(R[2, 0]) < 1.0:
+                y_deg = -np.arcsin(R[2, 0])
+                x_deg = np.arctan2(R[2, 1], R[2, 2])
+                z_deg = np.arctan2(R[1, 0], R[0, 0])
+
+            return np.rad2deg(x_deg), np.rad2deg(y_deg), np.rad2deg(z_deg)  # in radians
+        
+        x_deg, y_deg, z_deg = rotmat_to_euler(rotation_mat)
+
         translation = np.array([
             pose.translation().x,
             pose.translation().y,
@@ -107,10 +117,13 @@ def get_coords_from_frame(cap, detector, estimator, estimator_config, clahe, tar
             if 0 <= u < w and 0 <= v < h:
                 cv2.circle(frame, (u, v), 5, (255, 0, 255), -1)  # magenta = projected 3D point
 
-        return float(x), float(y), float(z), frame
+        return float(x)*39.37, float(y)*39.37, float(z)*39.37, x_deg, y_deg, z_deg, frame
 
-    return None, None, None, frame  # no tag found
+    return None, None, None, None, None, None, frame  # no tag found
 
+#######################
+### BEGIN MAIN CODE ###
+#######################
 # Initialize
 cap, detector, estimator, config, clahe = initialize_apriltag_system()
 
@@ -119,20 +132,41 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 server_address = ('localhost', 5005)
 
 # Loop
-while True:
-    x, y, z, frame = get_coords_from_frame(cap, detector, estimator, config, clahe)
+count = 0
+pose_history = []
 
-    if x is not None and y is not None:
-        coords = [x, y, z]
-        message = (json.dumps(coords) + '\n').encode('utf-8')
-        sock.sendto(message, server_address)
-        print(f"Sent coords: {coords}")
+print("starting tracking...")
+while True:
+    count += 1
+    x, y, z, x_deg, y_deg, z_deg, frame = get_coords_from_frame(cap, detector, estimator, config, clahe)
+
+    if x is not None and y is not None and z is not None:
+        pose = [x, y, z, x_deg, y_deg, z_deg]
+        pose_history.append(pose)
+        
+        # Keep only the last 20
+        if len(pose_history) > 20:
+            pose_history.pop(0)
+        
+        # Send over UDP
+        # message = (json.dumps(pose) + '\n').encode('utf-8')
+        # sock.sendto(message, server_address)
+        # print(f"Sent coords: {pose}")
+
+        # Every 20th iteration, print average
+        if count % 20 == 0 and len(pose_history) == 20:
+            avg_pose = np.mean(pose_history, axis=0)
+            print(f"\nAverage of last 20 poses:")
+            print(f"Position (in): X={avg_pose[0]:.2f}, Y={avg_pose[1]:.2f}, Z={avg_pose[2]:.2f}")
+            print(f"Orientation (deg): X Rotation={avg_pose[3]:.2f}, Y Rotation={avg_pose[4]:.2f}, z Rotation={avg_pose[5]:.2f}\n")
     else:
-        print("No tag detected.")
+        # print("No tag detected.")
+        0
 
     cv2.imshow("AprilTag Tracking", frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+
 
 cap.release()
 sock.close()
