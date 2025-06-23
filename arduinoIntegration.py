@@ -85,7 +85,7 @@ def send_pwm_list(pwm_values):
     assert len(pwm_values) == 6, "Send exactly 6 values"
     line = ','.join(str(int(v)) for v in pwm_values) + '\n'
     arduino.write(line.encode())
-    time.sleep(1)
+    # time.sleep(0.5)
     if arduino.in_waiting > 0:
         print("Arduino:", arduino.readline().decode().strip())
 
@@ -93,7 +93,7 @@ def send_pwm_list(pwm_values):
 # actuator_inv_kinematics([0, 0, 17, 90, 90, 45])
 # Example: Sweep all 6 pins up and down together
 try:
-    ln = actuator_inv_kinematics([0, 5, 14, 0, 0, 0])
+    ln = actuator_inv_kinematics([0, 0, 0, 0, 0, 0])
     print(ln)
     send_pwm_list(ln)
 except KeyboardInterrupt:
